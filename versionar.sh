@@ -6,7 +6,7 @@
 # (entrega_*.zip) sao colocadas em logs/, o log unico e logs/versionar.log
 # e a pasta para o Project sai em logs/contexto/.
 #
-# Uso, sempre de dentro da pasta do somgoes (a de config_somgoes.py)
+# Uso, sempre de dentro da pasta do somgoes (a que tem core/config_somgoes.py)
 #   ./versionar.sh iniciar               uma vez so, cria o repositorio e o primeiro commit
 #   ./versionar.sh aplicar [zip]         aplica uma entrega (sem argumento, a entrega_*.zip
 #                                        mais recente em logs/)
@@ -54,7 +54,7 @@ hist() {   # hist <titulo> ; o corpo vem pela entrada padrao
 }
 commit_hist() { :; }   # o historico fica fora do git (orientacoes/), nao ha o que commitar
 
-[ -f config_somgoes.py ] || [ -f src/config_somgoes.py ] || falha "rode de dentro da pasta do somgoes (a que tem config_somgoes.py ou src/config_somgoes.py)"
+[ -f core/config_somgoes.py ] || [ -f config_somgoes.py ] || falha "rode de dentro da pasta do somgoes (a que tem core/config_somgoes.py)"
 command -v git >/dev/null || falha "git nao instalado (sudo apt install git)"
 
 enviar() {   # envia commits e tags ao GitHub, se houver remoto origin

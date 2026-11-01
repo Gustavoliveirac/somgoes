@@ -26,7 +26,7 @@ import torch.nn as nn
 import torch.nn.functional as F
 from sklearn.metrics import average_precision_score, normalized_mutual_info_score
 
-import config_somgoes as cfg
+from core import config_somgoes as cfg
 
 warnings.filterwarnings("ignore")
 log = logging.getLogger("nucleo")

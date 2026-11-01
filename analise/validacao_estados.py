@@ -23,7 +23,7 @@ Saídas em analise_somgoes/validacao/ (CSVs) e analise_somgoes/figuras/F14 a F17
   similaridade_pares.csv    concordância entre cada par de modelos
   similaridade_resumo.csv   média, mínimo e máximo por cenário
   consenso.csv              nº de modelos em alerta ou acima x taxa de chuva forte
-Uso: python validacao_estados.py
+Uso: python -m analise.validacao_estados
 """
 from __future__ import annotations
 
@@ -42,9 +42,9 @@ from scipy.stats import spearmanr
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.metrics import adjusted_rand_score, cohen_kappa_score
 
-import config_somgoes as cfg
-import somgoes_nucleo as nu
-from estados_somgoes import conectividade
+from core import config_somgoes as cfg
+from core import somgoes_nucleo as nu
+from analise.estados_somgoes import conectividade
 
 OUT = cfg.ROOT / "analise_somgoes" / "validacao"
 FIG = cfg.ROOT / "analise_somgoes" / "figuras"

@@ -10,10 +10,10 @@ Ordem padrão (sem argumentos roda tudo, retomável):
   4. etapa2        varredura de grades com a melhor combinação da etapa 1
 
 Uso
-  python train_somgoes.py                 tudo
-  python train_somgoes.py --rapido        conferência rápida (sem folds)
-  python train_somgoes.py --familias etapa1 --folds 0 1
-  python train_somgoes.py --so-zip        só consolida e zipa
+  python -m core.train_somgoes                 tudo
+  python -m core.train_somgoes --rapido        conferência rápida (sem folds)
+  python -m core.train_somgoes --familias etapa1 --folds 0 1
+  python -m core.train_somgoes --so-zip        só consolida e zipa
 Envie de volta: pacote_somgoes.zip
 """
 from __future__ import annotations
@@ -33,8 +33,8 @@ import pandas as pd
 import torch
 from sklearn.cluster import MiniBatchKMeans
 
-import config_somgoes as cfg
-import somgoes_nucleo as nu
+from core import config_somgoes as cfg
+from core import somgoes_nucleo as nu
 
 log = logging.getLogger("treino")
 

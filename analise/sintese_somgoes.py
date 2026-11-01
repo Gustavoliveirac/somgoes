@@ -15,7 +15,7 @@ cruzada). Saídas em analise_somgoes/figuras/Sxx_*.png e dados_figuras/Sxx_*.csv
   S08 antecedência dos alertas antes do início da chuva forte e alarmes falsos por temporada
   S09 probabilidade de chuva forte em até 10..120 min a partir de cada estado
   S10 rotas de estados mais frequentes antes do início da chuva forte
-Uso: python sintese_somgoes.py
+Uso: python -m analise.sintese_somgoes
 """
 from __future__ import annotations
 
@@ -30,8 +30,8 @@ import pandas as pd
 import torch
 from sklearn.metrics import average_precision_score, roc_curve
 
-import config_somgoes as cfg
-import somgoes_nucleo as nu
+from core import config_somgoes as cfg
+from core import somgoes_nucleo as nu
 
 OUT = cfg.ROOT / "analise_somgoes"
 FIG, DAD = OUT / "figuras", OUT / "dados_figuras"
@@ -465,7 +465,7 @@ def s12_comite_aninhado(cache):
                 n=("forte", "size"), taxa_forte=("forte", "mean"), eventos=("forte", "sum")).reset_index()
             c.insert(0, "temporada_fora", s_); c.insert(0, "horizonte", h); c.insert(0, "chuva", ch); cons.append(c)
     if not linhas:
-        log.info("  comitê aninhado ainda não treinado (rodada_publicacao.py)"); return
+        log.info("  comitê aninhado ainda não treinado (python -m core.rodada_publicacao)"); return
     L = pd.DataFrame(linhas).round(4)
     C = pd.concat(cons)
     CR = C.groupby(["chuva", "horizonte", "votos"]).agg(n=("n", "sum"), eventos=("eventos", "sum")).reset_index()

@@ -15,7 +15,8 @@ import os
 from pathlib import Path
 
 # ═══════════════════════════════ caminhos ════════════════════════════════════
-ROOT       = Path(__file__).resolve().parent
+ROOT       = Path(__file__).resolve().parents[1]     # raiz do projeto (este arquivo fica em core/)
+GOES_META  = ROOT / "goes"                           # goes_planck.json, goes_recorte.json e goes_geometria.npz
 GFUSE_ROOT = Path(os.environ.get("GFUSE_ROOT", Path.home() / "Documentos" / "gfuse"))
 META_FILE  = GFUSE_ROOT / "processados" / "metadados.csv"
 ESTACOES_DIR = [Path(p) for p in os.environ.get("ESTACOES_DIR", "").split(":") if p] or [

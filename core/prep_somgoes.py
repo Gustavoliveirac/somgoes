@@ -14,8 +14,8 @@ Saídas em cache_somgoes/
   goes_campo.npy     (N, C, R, R) float16, campo GOES reduzido
   estacoes_em.csv, estacoes_nucleo.csv, estacoes_excluidas.csv, meta_cache.json, prep.log
 
-Uso:  python prep_somgoes.py              (tudo)
-      python prep_somgoes.py --so-chuva   (refaz chuva e alvos, reaproveita o GOES já processado)
+Uso:  python -m core.prep_somgoes              (tudo)
+      python -m core.prep_somgoes --so-chuva   (refaz chuva e alvos, reaproveita o GOES já processado)
 """
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ import warnings
 import numpy as np
 import pandas as pd
 
-import config_somgoes as cfg
+from core import config_somgoes as cfg
 
 warnings.filterwarnings("ignore")
 log = logging.getLogger("prep")

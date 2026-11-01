@@ -8,7 +8,7 @@ Saídas:   analise_somgoes/figuras/Fxx_*.png
           analise_somgoes/dados_figuras/Fxx_*.csv   (os dados exatos de cada figura)
           analise_somgoes/tabela_resumo.csv
           pacote_analise.zip  (todos os CSVs e logs, sem as figuras)
-Uso:      python analise_somgoes.py
+Uso:      python -m analise.analise_somgoes
 """
 from __future__ import annotations
 
@@ -24,7 +24,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-import config_somgoes as cfg
+from core import config_somgoes as cfg
 
 OUT = cfg.ROOT / "analise_somgoes"
 FIG, DAD = OUT / "figuras", OUT / "dados_figuras"

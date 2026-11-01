@@ -14,8 +14,8 @@ viu s. Cenários em cfg.COMITE_CENARIOS, perda e grade do modelo escolhido.
 
 Tudo é retomável e o que já existe é pulado. Estimativa na GPU: parte 1 cerca de 10 h,
 parte 2 cerca de 7 h, parte 3 cerca de 6 h.
-Uso:  python rodada_publicacao.py            (as 3 partes)
-      python rodada_publicacao.py 3          (só a parte 3; aceita 1, 2, 3 ou combinações)
+Uso:  python -m core.rodada_publicacao            (as 3 partes)
+      python -m core.rodada_publicacao 3          (só a parte 3; aceita 1, 2, 3 ou combinações)
 Depois: ./roda_analise.sh e envie o pacote_analise.zip
 """
 from __future__ import annotations
@@ -27,9 +27,9 @@ import time
 import numpy as np
 import torch
 
-import config_somgoes as cfg
-import somgoes_nucleo as nu
-import train_somgoes as T
+from core import config_somgoes as cfg
+from core import somgoes_nucleo as nu
+from core import train_somgoes as T
 
 
 def parte1(cache, prm, folds):

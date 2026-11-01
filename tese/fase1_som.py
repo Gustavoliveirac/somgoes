@@ -22,11 +22,11 @@ fase1_som.py — fase 1: elevar o SOM com os modelos já treinados e testar vari
       entre o nó e a transição seguinte (qualidade dos estados) e inícios a partir do seco,
       separando os locais
 
-Precisa de goes_geometria.npz e goes_planck.json na pasta do somgoes (gerados pelo
+Precisa de goes_geometria.npz e goes_planck.json na pasta goes/ (gerados pelo
 extrai_goes_meta.py) e dos mesmos arquivos do modelos_tese.py.
 Saídas em fase1_som/ e log mestre fase1_som/fase1_som.log (é o que deve ser enviado).
-Uso:  python fase1_som.py        (cerca de 1 h)
-      SEM_CATBOOST=1 python fase1_som.py
+Uso:  python -m tese.fase1_som        (cerca de 1 h)
+      SEM_CATBOOST=1 python -m tese.fase1_som
 """
 from __future__ import annotations
 
@@ -44,8 +44,8 @@ from sklearn.neighbors import NearestNeighbors
 
 import warnings
 
-import config_somgoes as cfg
-import modelos_tese as mt
+from core import config_somgoes as cfg
+from tese import modelos_tese as mt
 
 at = mt.at
 OUT = cfg.ROOT / "fase1_som"
@@ -77,7 +77,7 @@ def temperatura_brilho(L, p):
 
 
 def geometria():
-    g = np.load(cfg.ROOT / "goes_geometria.npz")
+    g = np.load(cfg.GOES_META / "goes_geometria.npz")
     lat, lon = g["lat32"], g["lon32"]
     lat0, lon0 = -19.9068, -43.9765
     E = (lon - lon0) * 111.32 * math.cos(math.radians(lat0))
@@ -109,7 +109,7 @@ def deslocamento(a, b):
 
 
 def variaveis_goes_fisicas(cache, A, lote=3000):
-    PL = json.load(open(cfg.ROOT / "goes_planck.json"))
+    PL = json.load(open(cfg.GOES_META / "goes_planck.json"))
     E, N, Jac = geometria()
     D = np.hypot(E, N)
     raios = (15, 30, 60)
@@ -209,8 +209,8 @@ def variaveis_pluvio(cache):
 # ═══════════════════════════════ SOM: latente, dura, suave, vizinhos ═════════
 def latentes(chuva, h):
     import torch
-    import somgoes_nucleo as nu
-    import sintese_somgoes as si
+    from core import somgoes_nucleo as nu
+    from analise import sintese_somgoes as si
     cache = mt.cache_som()
     base = cfg.RESULTS_DIR / "cenarios" / f"cenarios_{chuva}_h{h}_{si.PERDA_OP}_10x10"
     folds = sorted(int(p.name[4:]) for p in base.glob("fold*") if (p / "melhor.pt").exists())

@@ -22,8 +22,8 @@ Usa o cache (cache_somgoes/) e as previsões fora da temporada já geradas pela 
 Saídas em analise_tese/ (CSVs) e um log mestre analise_tese/analise_tese.log com todas
 as tabelas. Para revisão basta enviar o analise_tese.log.
 
-Uso:  python analise_tese.py            (tudo)
-      python analise_tese.py A1 A3      (só as partes indicadas)
+Uso:  python -m tese.analise_tese            (tudo)
+      python -m tese.analise_tese A1 A3      (só as partes indicadas)
 """
 from __future__ import annotations
 
@@ -37,7 +37,7 @@ from sklearn.ensemble import HistGradientBoostingClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import average_precision_score, roc_auc_score
 
-import config_somgoes as cfg
+from core import config_somgoes as cfg
 
 OUT = cfg.ROOT / "analise_tese"
 PREV = cfg.ROOT / "analise_somgoes" / "previsoes_fora_da_temporada.csv.gz"
@@ -141,7 +141,7 @@ def episodios(ativo, cont, gap_max=3):
 
 # ═══════════════════════════════ dados ═══════════════════════════════════════
 def carregar():
-    import somgoes_nucleo as nu
+    from core import somgoes_nucleo as nu
     cache = nu.Cache()
     A = cache.A.copy()
     A["pos"] = np.arange(len(A))

@@ -8,11 +8,11 @@ ABI-L1b-RadF/Cxx), na variável GOES_BRUTO ou em /media/<usuário>/*/goes16bh e
 /media/<usuário>/*/ufmg/goes16bh. Se não achar, baixa um arquivo de cada do repositório
 público da NOAA na AWS (noaa-goes16), sem senha, em torno de 400 MB no total, e apaga depois.
 
-Grava na pasta do somgoes (a mesma de config_somgoes.py):
+Grava na pasta goes/ do somgoes (a mesma deste script):
   goes_geometria.npz  lat e lon de cada pixel do recorte 64 x 64 e da grade reduzida 32 x 32
   goes_recorte.json   os quatro cantos do recorte (mapa da figura 1)
   goes_planck.json    constantes de Planck de C08 a C14 (radiância para temperatura de brilho)
-Uso:   python extrai_goes_meta.py
+Uso:   python -m goes.extrai_goes_meta
 Envie de volta o goes_extrai.log.
 """
 import glob

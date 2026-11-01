@@ -10,10 +10,10 @@ final de estados. Se a chuva de colar e núcleo não estiver disponível, o moto
 sozinho para o modelo sem chuva na entrada.
 
 Comandos
-  python motor_alerta.py exportar             empacota modelos, normalizações e taxas em motor/
-  python motor_alerta.py replay INICIO FIM    roda o motor em um período do histórico (cache)
-  python motor_alerta.py eventos N            replay dos N dias de maior chuva no núcleo
-  python motor_alerta.py agora [AAAA-MM-DD HH:MM]   alerta do horário (dados brutos recentes)
+  python -m alerta.motor_alerta exportar             empacota modelos, normalizações e taxas em motor/
+  python -m alerta.motor_alerta replay INICIO FIM    roda o motor em um período do histórico (cache)
+  python -m alerta.motor_alerta eventos N            replay dos N dias de maior chuva no núcleo
+  python -m alerta.motor_alerta agora [AAAA-MM-DD HH:MM]   alerta do horário (dados brutos recentes)
 
 No replay usa-se SÓ o modelo que não viu aquela temporada (prob_honesta e o nível dela).
 O comitê só vale para horários futuros, que nenhum modelo viu; o seu ganho em relação ao
@@ -33,8 +33,8 @@ import numpy as np
 import pandas as pd
 import torch
 
-import config_somgoes as cfg
-import somgoes_nucleo as nu
+from core import config_somgoes as cfg
+from core import somgoes_nucleo as nu
 
 PASTA = cfg.ROOT / "motor"
 CENARIOS = [("colar_nucleo", 30), ("colar_nucleo", 60), ("nenhuma", 30), ("nenhuma", 60)]
@@ -236,7 +236,7 @@ def eventos(n):
 def agora(ts=None):
     """alerta do horário a partir dos dados brutos recentes. Na plataforma hidromet,
     substitua montar_ao_vivo por uma consulta ao banco com o mesmo formato de saída."""
-    from motor_entrada import montar_ao_vivo
+    from alerta.motor_entrada import montar_ao_vivo
     ts = pd.Timestamp(ts) if ts else pd.Timestamp.now().floor("10min")
     b = montar_ao_vivo(ts)
     motor = Motor()

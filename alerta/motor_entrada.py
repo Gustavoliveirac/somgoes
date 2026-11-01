@@ -15,8 +15,8 @@ import json
 import numpy as np
 import pandas as pd
 
-import config_somgoes as cfg
-import prep_somgoes as pp
+from core import config_somgoes as cfg
+from core import prep_somgoes as pp
 
 JANELA_H = 3        # horas de histórico lidas por estação
 _IDX = None

@@ -19,8 +19,8 @@ Validação: uma temporada fora por vez, igual ao SOM. Usa o cache, os modelos d
 resultados_somgoes/cenarios e as previsões fora da temporada da síntese.
 
 Saídas em modelos_tese/ e um log mestre modelos_tese/modelos_tese.log (é o que deve ser enviado).
-Uso:   python modelos_tese.py              (tudo; 1 a 2 h)
-       RAPIDO=1 python modelos_tese.py     (sem Random Forest e com menos árvores)
+Uso:   python -m tese.modelos_tese              (tudo; 1 a 2 h)
+       RAPIDO=1 python -m tese.modelos_tese     (sem Random Forest e com menos árvores)
 CatBoost: pip install catboost  (se não estiver instalado, é pulado e o log avisa)
 """
 from __future__ import annotations
@@ -35,8 +35,8 @@ import pandas as pd
 from scipy.cluster.hierarchy import fcluster, linkage
 from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
 
-import config_somgoes as cfg
-import analise_tese as at
+from core import config_somgoes as cfg
+from tese import analise_tese as at
 
 OUT = cfg.ROOT / "modelos_tese"
 RAPIDO = os.environ.get("RAPIDO", "0") == "1"
@@ -126,8 +126,8 @@ def nos_som(chuva, h):
     """Para cada temporada, carrega o SOM treinado sem ela e atribui nó, frequência do nó
     e região a todos os horários (treino e teste daquele fold)."""
     import torch
-    import somgoes_nucleo as nu
-    import sintese_somgoes as si
+    from core import somgoes_nucleo as nu
+    from analise import sintese_somgoes as si
     cache = cache_som()
     base = cfg.RESULTS_DIR / "cenarios" / f"cenarios_{chuva}_h{h}_{si.PERDA_OP}_10x10"
     folds = sorted(int(p.name[4:]) for p in base.glob("fold*") if (p / "melhor.pt").exists())
@@ -180,7 +180,7 @@ _CACHE = None
 def cache_som():
     global _CACHE
     if _CACHE is None:
-        import somgoes_nucleo as nu
+        from core import somgoes_nucleo as nu
         _CACHE = nu.Cache()
     return _CACHE
 

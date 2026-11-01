@@ -8,9 +8,9 @@ Lê:  analise_somgoes/dados_figuras (síntese), resultados_somgoes/metricas_cons
 Grava: figuras_tese/pt/*.png, figuras_tese/en/*.png e, para cada figura, o CSV com os dados
      plotados em figuras_tese/dados/. Log em figuras_tese/figuras_tese.log.
 
-Uso:  python figuras_tese.py                (todas)
-      python figuras_tese.py fig08 fig09    (só as indicadas)
-      python figuras_tese.py fig08 --evento "2023-03-12 16:00"   (replay de um horário extra)
+Uso:  python -m tese.figuras_tese                (todas)
+      python -m tese.figuras_tese fig08 fig09    (só as indicadas)
+      python -m tese.figuras_tese fig08 --evento "2023-03-12 16:00"   (replay de um horário extra)
 """
 from __future__ import annotations
 
@@ -27,7 +27,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
-import config_somgoes as cfg
+from core import config_somgoes as cfg
 
 ROOT = cfg.ROOT
 DF = ROOT / "analise_somgoes" / "dados_figuras"
@@ -172,10 +172,10 @@ def mapa_base(lat0, lat1, lon0, lon1, z=9):
 
 def recorte_goes():
     """Contorno do recorte do GOES em lat/lon. Procura, nesta ordem, goes_recorte.json na pasta
-    do somgoes ({"lat": [[...]], "lon": [[...]]} ou "cantos": [[lat, lon], ...]) e arquivos
+    goes/ do somgoes ({"lat": [[...]], "lon": [[...]]} ou "cantos": [[lat, lon], ...]) e arquivos
     *lat*.npy e *lon*.npy na pasta do GOES. Sem eles, a figura sai sem o contorno e o log avisa."""
     import json
-    j = ROOT / "goes_recorte.json"
+    j = cfg.GOES_META / "goes_recorte.json"
     lat = lon = None
     if j.exists():
         d = json.load(open(j))

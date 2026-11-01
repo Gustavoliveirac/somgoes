@@ -24,8 +24,8 @@ Para cada cenário (entrada de chuva x horizonte) definido em cfg.ESTADOS_CENARI
        goes_composto.csv        campo GOES médio por região (8 canais, 32x32)
        regioes_N.csv            célula -> região para cada número de regiões testado
 
-Uso:  python estados_somgoes.py            (todos os cenários)
-      python estados_somgoes.py --rapido   (poucas épocas, só para conferir)
+Uso:  python -m analise.estados_somgoes            (todos os cenários)
+      python -m analise.estados_somgoes --rapido   (poucas épocas, só para conferir)
 """
 from __future__ import annotations
 
@@ -39,8 +39,8 @@ import torch
 from scipy.sparse import lil_matrix
 from sklearn.cluster import AgglomerativeClustering
 
-import config_somgoes as cfg
-import somgoes_nucleo as nu
+from core import config_somgoes as cfg
+from core import somgoes_nucleo as nu
 
 log = logging.getLogger("estados")
 NOMES_AGORA = {0: "seco", 1: "chuva fraca/moderada", 2: "chuva forte"}
