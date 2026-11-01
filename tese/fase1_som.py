@@ -20,7 +20,9 @@ fase1_som.py — fase 1: elevar o SOM com os modelos já treinados e testar vari
         pluviômetros com defasagem de 10, 20 e 30 min e variação em 30 min
   C4  avaliação: AP, recall e lift por fração do tempo, POD, FAR, CSI, HSS, informação mútua
       entre o nó e a transição seguinte (qualidade dos estados) e inícios a partir do seco,
-      separando os locais
+      separando os locais; um início conta como antecipado quando o escore, um horizonte antes
+      do limiar, supera o de 95% dos horários secos da mesma temporada (posição na ordenação,
+      sem contar empates)
 
 Precisa de goes_geometria.npz e goes_planck.json na pasta goes/ (gerados pelo
 extrai_goes_meta.py) e dos mesmos arquivos do modelos_tese.py.
@@ -52,7 +54,7 @@ OUT = cfg.ROOT / "fase1_som"
 SEM_CATBOOST = os.environ.get("SEM_CATBOOST", "0") == "1"
 log = logging.getLogger("fase1")
 warnings.filterwarnings("ignore", category=RuntimeWarning)
-TAUS = (0.05, 0.1, 0.2, 0.5, 1.0, 2.0)
+TAUS = (0.05, 0.1, 0.2, 0.5, 1.0, 2.0, 5.0, 10.0, 20.0, 50.0)
 K_VIZ = (100, 300)
 
 
@@ -368,18 +370,7 @@ def main():
             # inícios a partir do seco, locais e com chuva no anel
             ini = at.inicios(E, h)
             tipos = mt.tipo_inicio_seco(E, ini, h)
-            seco = E.agora.to_numpy() == 0
-            k = np.clip(ini.pos_tc.to_numpy() - h // 10, 0, None)
-            for nome, s in S.items():
-                if nome.startswith("persist"):
-                    continue
-                sc = np.nan_to_num(s, nan=-1); p95 = np.quantile(sc[seco], 0.95)
-                for tp in np.unique(tipos):
-                    mm = (tipos == tp) & ini.partiu_do_seco.to_numpy()
-                    if mm.sum():
-                        EV.append(dict(horizonte=h, entradas=conj, modelo=nome, grupo=tp, inicios=int(mm.sum()),
-                                       frac_acima_p95_do_seco=round(float((sc[k][mm] >= p95).mean()), 3),
-                                       frac_alerta_010=round(float((sc[k][mm] >= at.L_ALERTA).mean()), 3)))
+            EV += at.resumo_inicios(E, ini, S, h, conj, tipos)
     M = pd.DataFrame(M)
     at.salvar("C_metricas", M.round(4), mostrar=False)
     at.salvar("C_pontos_de_operacao", pd.DataFrame(C).round(4), mostrar=False)

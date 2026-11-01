@@ -407,6 +407,58 @@ def classificar_inicio(E, ini, s, lim, h, max_antes=18):
     return pd.DataFrame(lin)
 
 
+def posicao_entre_secos(E, k, s):
+    """Posição do escore de cada horário k entre os horários secos da mesma temporada, como a
+    fração dos secos com escore estritamente menor. Empates não contam a favor do horário, de
+    modo que um escore igual ao da maioria dos secos (por exemplo, zero) fica em posição baixa."""
+    s = np.asarray(s, float)
+    seco = (E.agora.to_numpy() == 0) & np.isfinite(s)
+    fold = E.fold.to_numpy()
+    k = np.asarray(k, int)
+    out = np.full(len(k), np.nan)
+    for f in np.unique(fold[k]):
+        ref = np.sort(s[seco & (fold == f)])
+        m = (fold[k] == f) & np.isfinite(s[k])
+        if len(ref) and m.any():
+            out[m] = np.searchsorted(ref, s[k][m], side="left") / len(ref)
+    return out
+
+
+def wilson(k, n, z=1.96):
+    if n == 0:
+        return np.nan, np.nan
+    p = k / n; den = 1 + z * z / n
+    c = (p + z * z / (2 * n)) / den
+    m = z * np.sqrt(p * (1 - p) / n + z * z / (4 * n * n)) / den
+    return c - m, c + m
+
+
+def resumo_inicios(E, ini, S, h, conj, tipos, lim_pos=0.95):
+    """Para cada modelo e cada tipo de início a partir do seco, quantos inícios têm, um horizonte
+    antes do limiar, escore acima de 95% dos horários secos da mesma temporada (posição na
+    ordenação, sem contar empates), com intervalo de Wilson de 95%, e quantos passam do alerta 0,10."""
+    k = np.clip(ini.pos_tc.to_numpy() - h // 10, 0, None)
+    seco_ini = ini.partiu_do_seco.to_numpy()
+    lin = []
+    for nome, s in S.items():
+        if nome.startswith("persist"):
+            continue
+        pos = posicao_entre_secos(E, k, s)
+        sc = np.nan_to_num(np.asarray(s, float), nan=-1)
+        for tp in np.unique(tipos):
+            mm = (tipos == tp) & seco_ini
+            if not mm.any():
+                continue
+            n = int(mm.sum()); a = int((pos[mm] >= lim_pos).sum())
+            lo, hi = wilson(a, n)
+            lin.append(dict(horizonte=h, entradas=conj, modelo=nome, grupo=tp, inicios=n,
+                            antecipados_p95=a, frac_antecipados=round(a / n, 3),
+                            ic95_inf=round(lo, 3), ic95_sup=round(hi, 3),
+                            posicao_mediana=round(float(np.nanmedian(pos[mm])), 3),
+                            frac_alerta_010=round(float((sc[k][mm] >= L_ALERTA).mean()), 3)))
+    return lin
+
+
 def a3(K):
     log.info("A3 inícios de chuva forte: antecedência em relação ao início da chuva e ao limiar")
     R, D = [], []
@@ -637,11 +689,12 @@ def a6(A, K):
                             np.where(c1 >= cfg.BASCULA, "chuva no colar 1, fora do barlavento ou fraca",
                                      "sem chuva no colar 1 (iniciação local)"))
             prev = s_seco[k]; som_k = som[k]
-            T = pd.DataFrame(dict(tipo=tipo, prob_modelo_seco=prev, prob_som=som_k))
+            pos_seco = posicao_entre_secos(E, k, s_seco)
+            T = pd.DataFrame(dict(tipo=tipo, prob_modelo_seco=prev, prob_som=som_k, pos=pos_seco))
             T = T.groupby("tipo").agg(inicios=("tipo", "size"), prob_modelo_seco_mediana=("prob_modelo_seco", "median"),
                                       prob_som_mediana=("prob_som", "median"),
                                       frac_som_alerta=("prob_som", lambda x: (x >= L_ALERTA).mean()),
-                                      frac_modelo_seco_acima_p95=("prob_modelo_seco", lambda x: (x >= np.nanquantile(s_seco[seco], 0.95)).mean())).reset_index()
+                                      frac_modelo_seco_acima_p95=("pos", lambda x: (x >= 0.95).mean())).reset_index()
             T.insert(0, "horizonte", h)
             salvar(f"A6_inicios_do_seco_por_tipo_h{h}", T.round(4))
     salvar("A6_desempenho_no_seco", pd.DataFrame(R).round(4))

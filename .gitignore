@@ -33,3 +33,5 @@ __pycache__/
 .ipynb_checkpoints/
 cache_tiles/
 *.log
+etapa_a/
+etapa_b/

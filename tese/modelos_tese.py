@@ -316,18 +316,9 @@ def main():
                       and "[só" not in m["modelo"] and m["modelo"] not in ("SOM profundo", "persistência")}
                 melhor = max(AP, key=AP.get) if AP else None
                 tipos = tipo_inicio_seco(E, ini, h)
-                seco_all = E.agora.to_numpy() == 0
-                for nome in [n for n in S if not n.startswith("persist")]:
-                    sc = np.nan_to_num(S[nome], nan=-1)
-                    p95 = np.quantile(sc[seco_all], 0.95)
-                    k = np.clip(ini.pos_tc.to_numpy() - h // 10, 0, None)
-                    for tp in np.unique(tipos):
-                        mm = (tipos == tp) & ini.partiu_do_seco.to_numpy()
-                        if mm.sum():
-                            EV.append(dict(horizonte=h, entradas=conj, modelo=nome, grupo=f"inícios do seco, {tp}",
-                                           inicios=int(mm.sum()),
-                                           frac_escore_acima_p95_do_seco=float((sc[k][mm] >= p95).mean()),
-                                           frac_alerta_010=float((sc[k][mm] >= at.L_ALERTA).mean())))
+                for lin in at.resumo_inicios(E, ini, S, h, conj, tipos):
+                    lin["grupo"] = f"inícios do seco, {lin['grupo']}"
+                    EV.append(lin)
                 for nome in [n for n in ("SOM profundo", melhor) if n]:
                     s = np.nan_to_num(S[nome], nan=-1)
                     c = at.classificar_inicio(E, ini, s, at.L_ALERTA, h)
