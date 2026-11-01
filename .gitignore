@@ -1,0 +1,34 @@
+# dados, caches e saídas (ficam só na máquina)
+cache_somgoes/
+resultados_somgoes/
+analise_somgoes/
+analise_tese/
+modelos_tese/
+fase1_som/
+figuras_tese/
+motor/
+logs/
+_arquivo/
+teste/
+*.npy
+*.npz
+*.parquet
+*.pt
+*.pth
+*.ckpt
+*.zip
+*.gz
+*.nc
+*.tif
+*.h5
+# fora do repositório público, mas no contexto do Project
+orientacoes/
+escrita/
+referencias/
+resultados/
+# ambiente e lixo
+.env
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+cache_tiles/
