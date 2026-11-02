@@ -467,6 +467,13 @@ def treinar(model, cache, tr, va, norm, estrategia, epocas, lotes_epoca, ckpt_di
         ini, best, sem, hist = st["epoca"], st["best"], st["sem"], st["hist"]
         log.info(f"    retomando da época {ini}")
     yA = cache.rotulos(np.arange(len(cache.A)), h)
+    # A parada antecipada usa a última temporada de treino, nunca a temporada avaliada (`va` dos
+    # chamadores). Até 02/11/2026 ela usava `va`, o que favorecia os resultados fora da temporada.
+    temp = cache.A.fold.to_numpy()
+    tts = np.unique(temp[tr])
+    if len(tts) > 1:
+        va = tr[temp[tr] == tts.max()]; tr = tr[temp[tr] != tts.max()]
+        log.info(f"    parada antecipada na temporada de treino {int(tts.max())} ({len(va):,} horários)")
     amo = Amostrador(tr, yA["transicao"][tr], cfg.LOTE)
     P = cfg.PERDAS_DEF.get(estrategia, {})
     fut, valh = cache.futuro(h), cache._val(h)
