@@ -17,7 +17,9 @@ etapa_d.py — duas formas de combinar o SOM com o gradient boosting.
 Os dois usam a configuração escolhida na etapa C (entropia cruzada com pesos por classe, peso 5
 da cabeça, taxa de aprendizado 1e-3), uma temporada de treino separada para a parada antecipada
 e a calibração, e a cabeça dá ao mesmo tempo a probabilidade de passar de 0,2, 2,5, 10 e
-20 mm/h. A comparação é com o gradient boosting por limiar de chuva, nas seis temporadas, em POD,
+20 mm/h. O gradient boosting desta etapa é o LightGBM, do mesmo tipo do HistGradientBoosting das
+etapas anteriores e várias vezes mais rápido, o que torna viáveis os 24 ajustes por temporada.
+A comparação é com ele, por limiar de chuva, nas seis temporadas, em POD,
 FAR e CSI. Gradient boosting e probabilidades ficam salvos, e uma rodada interrompida continua de
 onde parou.
 Uso (da raiz):  python -m tese.etapa_d
@@ -50,7 +52,7 @@ NIVEIS = ec.NIVEIS
 X_MM = ec.X_MM
 VAR = ec.VARIANTES["bce_pesos"]
 ROT = {"entradas": "SOM com cabeça e as mesmas entradas", "correcao": "SOM como correção do gradient boosting"}
-GB = "gradient boosting, variáveis novas"
+GB = "gradient boosting (LightGBM), variáveis novas"
 log = logging.getLogger("etapa_d")
 
 
@@ -73,6 +75,26 @@ def logito(p):
 
 
 # ═══════════════════════════════ gradient boosting fora da temporada ══════════
+def gb(Xtr, ytr, Xte):
+    """Gradient boosting por histogramas (LightGBM, mesmo tipo de modelo do HistGradientBoosting
+    do scikit-learn, várias vezes mais rápido): 10% do treino separados para a parada antecipada."""
+    try:
+        import lightgbm as lgb
+    except ImportError:
+        return mt.ajustar("HistGradientBoosting", Xtr, ytr, Xte, None)
+    rng = np.random.default_rng(cfg.SEED)
+    va = rng.random(len(ytr)) < 0.1
+    m = lgb.LGBMClassifier(n_estimators=200 if TESTE else 1000, learning_rate=0.05, num_leaves=31,
+                           min_child_samples=40, reg_lambda=1.0, subsample=0.8, subsample_freq=1,
+                           colsample_bytree=0.8, n_jobs=-1, verbose=-1, random_state=cfg.SEED)
+    para = [lgb.early_stopping(50, verbose=False)]
+    try:                                   # LightGBM 4.7 em diante
+        m.fit(Xtr[~va], ytr[~va], eval_X=(Xtr[va],), eval_y=(ytr[va],), callbacks=para)
+    except TypeError:
+        m.fit(Xtr[~va], ytr[~va], eval_set=[(Xtr[va], ytr[va])], callbacks=para)
+    return m.predict_proba(Xte)[:, 1]
+
+
 def gb_aninhado(E, X, prox, h, chuva, folds_te):
     """Probabilidade do gradient boosting por limiar. Para cada temporada avaliada k: na própria k,
     modelo treinado com todas as outras; em cada temporada de treino s, modelo treinado sem k e
@@ -82,19 +104,19 @@ def gb_aninhado(E, X, prox, h, chuva, folds_te):
     folds = sorted(np.unique(fE))
     res = {}
     for k in folds_te:
-        arq = OUT / "gb" / f"gb_h{h}_{chuva}_fold{k}.npz"
+        arq = OUT / "gb" / f"lgbm_h{h}_{chuva}_fold{k}.npz"
         if arq.exists():
             g = np.load(arq); res[k] = {c: g[c] for c in g.files}; continue
         t0 = time.time()
         te = fE == k
-        P_te = np.column_stack([mt.ajustar("HistGradientBoosting", X[~te & ok], est[~te & ok] >= nv, X[te], None)
+        P_te = np.column_stack([gb(X[~te & ok], est[~te & ok] >= nv, X[te])
                                 for nv in NIVEIS])
         pos_tr, P_tr = [], []
         for s in folds:
             if s == k:
                 continue
             ms = fE == s; fit = ~te & ~ms & ok
-            P_tr.append(np.column_stack([mt.ajustar("HistGradientBoosting", X[fit], est[fit] >= nv, X[ms], None)
+            P_tr.append(np.column_stack([gb(X[fit], est[fit] >= nv, X[ms])
                                          for nv in NIVEIS]))
             pos_tr.append(pE[ms])
         res[k] = dict(pos_te=pE[te], p_te=P_te, pos_tr=np.concatenate(pos_tr), p_tr=np.vstack(P_tr))
@@ -115,8 +137,8 @@ def treinar(cache, chuva, h, tr_in, va_in, tr_all, modo, Xc, off, rotulo):
     m = nu.SOMGoes(cache, cfg.GOES_CENARIOS, "ae", (10, 10), chuva=chuva)
     K, lat = m.prot.shape
     if modo == "entradas":
-        m.tab = nn.Sequential(nn.Linear(Xc.shape[1], 128), nn.ReLU(), nn.Linear(128, lat))
-        m.fus = nn.Linear(2 * lat, lat)
+        m.ramo_tab = nn.Sequential(nn.Linear(Xc.shape[1], 128), nn.ReLU(), nn.Linear(128, lat))
+        m.fus_tab = nn.Linear(2 * lat, lat)     # nomes próprios; o SOMGoes já tem um atributo fus
     m.cab = nn.Sequential(nn.Linear(K, 64), nn.ReLU(), nn.Linear(64, len(NIVEIS)))
     m.to(nu.DEV)
     Xt = torch.from_numpy(Xc).to(nu.DEV) if Xc is not None else None
@@ -133,7 +155,7 @@ def treinar(cache, chuva, h, tr_in, va_in, tr_all, modo, Xc, off, rotulo):
     def latente(b, ix):
         z, _, _ = m.codificar(b)
         if modo == "entradas":
-            z = m.fus(torch.cat([z, m.tab(Xt[torch.as_tensor(ix, device=nu.DEV)])], 1))
+            z = m.fus_tab(torch.cat([z, m.ramo_tab(Xt[torch.as_tensor(ix, device=nu.DEV)])], 1))
         return z
 
     def saida(z, ix):
