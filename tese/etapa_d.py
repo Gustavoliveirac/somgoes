@@ -17,9 +17,9 @@ etapa_d.py — duas formas de combinar o SOM com o gradient boosting.
 Os dois usam a configuração escolhida na etapa C (entropia cruzada com pesos por classe, peso 5
 da cabeça, taxa de aprendizado 1e-3), uma temporada de treino separada para a parada antecipada
 e a calibração, e a cabeça dá ao mesmo tempo a probabilidade de passar de 0,2, 2,5, 10 e
-20 mm/h. O gradient boosting desta etapa é o LightGBM, do mesmo tipo do HistGradientBoosting das
-etapas anteriores e várias vezes mais rápido, o que torna viáveis os 24 ajustes por temporada.
-A comparação é com ele, por limiar de chuva, nas seis temporadas, em POD,
+20 mm/h. O gradient boosting é o mesmo HistGradientBoosting das etapas anteriores. Na correção,
+só o limiar de 10 mm/h parte do gradient boosting, e cada modelo treinado sem duas temporadas
+serve às duas (15 pares em vez de 30 ajustes). A comparação é com o gradient boosting por limiar de chuva, nas seis temporadas, em POD,
 FAR e CSI. Gradient boosting e probabilidades ficam salvos, e uma rodada interrompida continua de
 onde parou.
 Uso (da raiz):  python -m tese.etapa_d
@@ -52,7 +52,7 @@ NIVEIS = ec.NIVEIS
 X_MM = ec.X_MM
 VAR = ec.VARIANTES["bce_pesos"]
 ROT = {"entradas": "SOM com cabeça e as mesmas entradas", "correcao": "SOM como correção do gradient boosting"}
-GB = "gradient boosting (LightGBM), variáveis novas"
+GB = "gradient boosting, variáveis novas"
 log = logging.getLogger("etapa_d")
 
 
@@ -75,54 +75,37 @@ def logito(p):
 
 
 # ═══════════════════════════════ gradient boosting fora da temporada ══════════
-def gb(Xtr, ytr, Xte):
-    """Gradient boosting por histogramas (LightGBM, mesmo tipo de modelo do HistGradientBoosting
-    do scikit-learn, várias vezes mais rápido): 10% do treino separados para a parada antecipada."""
-    try:
-        import lightgbm as lgb
-    except ImportError:
-        return mt.ajustar("HistGradientBoosting", Xtr, ytr, Xte, None)
-    rng = np.random.default_rng(cfg.SEED)
-    va = rng.random(len(ytr)) < 0.1
-    m = lgb.LGBMClassifier(n_estimators=200 if TESTE else 1000, learning_rate=0.05, num_leaves=31,
-                           min_child_samples=40, reg_lambda=1.0, subsample=0.8, subsample_freq=1,
-                           colsample_bytree=0.8, n_jobs=-1, verbose=-1, random_state=cfg.SEED)
-    para = [lgb.early_stopping(50, verbose=False)]
-    try:                                   # LightGBM 4.7 em diante
-        m.fit(Xtr[~va], ytr[~va], eval_X=(Xtr[va],), eval_y=(ytr[va],), callbacks=para)
-    except TypeError:
-        m.fit(Xtr[~va], ytr[~va], eval_set=[(Xtr[va], ytr[va])], callbacks=para)
-    return m.predict_proba(Xte)[:, 1]
-
-
-def gb_aninhado(E, X, prox, h, chuva, folds_te):
-    """Probabilidade do gradient boosting por limiar. Para cada temporada avaliada k: na própria k,
-    modelo treinado com todas as outras; em cada temporada de treino s, modelo treinado sem k e
-    sem s. Devolve {k: (posições no cache, matriz n x 4)} para teste e para treino."""
+def gb_teste(E, X, prox, h, chuva, k):
+    """Gradient boosting (o mesmo HistGradientBoosting das etapas anteriores) por limiar de chuva,
+    treinado com todas as temporadas menos k e aplicado em k."""
+    arq = OUT / "gb" / f"hgb_teste_h{h}_{chuva}_fold{k}.npz"
+    if arq.exists():
+        g = np.load(arq); return g["pos"], g["p"]
     fE, pE = E.fold.to_numpy(), E.pos.to_numpy()
-    est = prox[pE]; ok = est >= 0
-    folds = sorted(np.unique(fE))
-    res = {}
-    for k in folds_te:
-        arq = OUT / "gb" / f"lgbm_h{h}_{chuva}_fold{k}.npz"
-        if arq.exists():
-            g = np.load(arq); res[k] = {c: g[c] for c in g.files}; continue
-        t0 = time.time()
-        te = fE == k
-        P_te = np.column_stack([gb(X[~te & ok], est[~te & ok] >= nv, X[te])
-                                for nv in NIVEIS])
-        pos_tr, P_tr = [], []
-        for s in folds:
-            if s == k:
-                continue
-            ms = fE == s; fit = ~te & ~ms & ok
-            P_tr.append(np.column_stack([gb(X[fit], est[fit] >= nv, X[ms])
-                                         for nv in NIVEIS]))
-            pos_tr.append(pE[ms])
-        res[k] = dict(pos_te=pE[te], p_te=P_te, pos_tr=np.concatenate(pos_tr), p_tr=np.vstack(P_tr))
-        np.savez(arq, **res[k])
-        log.info(f"  gradient boosting h{h} {chuva}: temporada {k} e suas temporadas de treino em {(time.time() - t0) / 60:.1f} min")
-    return res
+    est = prox[pE]; ok = est >= 0; te = fE == k
+    t0 = time.time()
+    P = np.column_stack([mt.ajustar("HistGradientBoosting", X[~te & ok], est[~te & ok] >= nv, X[te], None) for nv in NIVEIS])
+    np.savez(arq, pos=pE[te], p=P)
+    log.info(f"  gradient boosting h{h} {chuva}: temporada {k}, quatro limiares, em {(time.time() - t0) / 60:.1f} min")
+    return pE[te], P
+
+
+def gb_par(E, X, prox, h, chuva, a, b):
+    """Gradient boosting para 10 mm/h treinado sem as temporadas a e b, aplicado nas duas. Serve
+    aos horários de b quando a é a temporada avaliada e aos de a quando b é a avaliada, de modo
+    que nenhum horário de treino recebe probabilidade de um modelo que viu a própria temporada
+    ou a temporada avaliada."""
+    arq = OUT / "gb" / f"hgb_par_h{h}_{chuva}_{a}_{b}.npz"
+    if arq.exists():
+        g = np.load(arq); return {c: g[c] for c in g.files}
+    fE, pE = E.fold.to_numpy(), E.pos.to_numpy()
+    est = prox[pE]; ok = est >= 0; fora = (fE == a) | (fE == b)
+    t0 = time.time()
+    p = mt.ajustar("HistGradientBoosting", X[~fora & ok], est[~fora & ok] >= 3, X[fora], None)
+    r = dict(pos=pE[fora], p=p)
+    np.savez(arq, **r)
+    log.info(f"  gradient boosting h{h} {chuva}: sem as temporadas {a} e {b}, em {(time.time() - t0) / 60:.1f} min")
+    return r
 
 
 # ═══════════════════════════════ treino ══════════════════════════════════════
@@ -235,14 +218,15 @@ def main():
         prox = cache.A[f"estado_prox{at.sufixo(h)}"].to_numpy()
         fE, pE = E.fold.to_numpy(), E.pos.to_numpy()
         folds = sorted(np.unique(fE))[:1] if TESTE else sorted(np.unique(fE))
-        G = gb_aninhado(E, X, prox, h, chuva, folds)
+        todas = sorted(np.unique(fE))
         S = {nm: {nv: np.full(len(E), np.nan) for nv in NIVEIS} for nm in (ROT["entradas"], ROT["correcao"], GB)}
         for k in folds:
             t0 = time.time()
             tr_in, va_in, te, tr_all, sval = ec.divisao(cache, k, h)
             te_E = fE == k
             # gradient boosting na temporada avaliada
-            Pg = pd.DataFrame(G[k]["p_te"], index=G[k]["pos_te"])
+            pos_te, p_te = gb_teste(E, X, prox, h, chuva, k)
+            Pg = pd.DataFrame(p_te, index=pos_te)
             for i, nv in enumerate(NIVEIS):
                 S[GB][nv][te_E] = Pg[i].reindex(pE[te_E]).to_numpy()
             # variáveis do gradient boosting no formato do cache, padronizadas com o treino
@@ -255,7 +239,14 @@ def main():
             # logito do gradient boosting no formato do cache (treino aninhado, teste com as demais)
             base = np.array([logito(((prox[tr_all] >= nv) & (prox[tr_all] >= 0)).mean()) for nv in NIVEIS], np.float32)
             off = np.tile(base, (N, 1)).astype(np.float32)
-            off[G[k]["pos_tr"]] = logito(G[k]["p_tr"]); off[G[k]["pos_te"]] = logito(G[k]["p_te"])
+            # só o limiar de 10 mm/h parte do gradient boosting; os demais partem da frequência no treino
+            for s_ in todas:
+                if s_ == k:
+                    continue
+                g = gb_par(E, X, prox, h, chuva, min(k, s_), max(k, s_))
+                fs = np.isin(g["pos"], pE[fE == s_])
+                off[g["pos"][fs], 2] = logito(g["p"][fs])
+            off[pos_te, 2] = logito(p_te[:, 2])
             for modo in ("entradas", "correcao"):
                 arq = OUT / "probs" / f"{modo}_h{h}_{chuva}_fold{k}.csv.gz"
                 if arq.exists():
